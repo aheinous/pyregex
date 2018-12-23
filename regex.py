@@ -67,6 +67,13 @@ class Tokenizer:
 	def atEnd(self):
 		return self._pos >= len(self._tokens)
 
+	def __str__(self):
+		s = 'Tokenizer(pos={}/{}, [{}])'.format(
+			self._pos,
+			len(self._tokens),
+			','.join(map(str, self._tokens)))
+		return s
+
 
 
 ''' AST ------------------------------------------ '''
@@ -306,6 +313,20 @@ class ParseError(Exception):
 
 
 class Parser:
+
+	'''
+	The order of precedence for of operators is as follows:
+
+	Collation-related bracket symbols [==] [::] [..]
+	Escaped characters \
+	Character set (bracket expression) []
+	Grouping ()
+	Single-character-ERE duplication * + ? {m,n}
+	Concatenation
+	Anchoring ^$
+	Alternation |
+	'''
+
 	def __init__(self, regex):
 		if len(regex) == 0:
 			raise Exception('zero length regex')
@@ -315,22 +336,26 @@ class Parser:
 	def parse(self):
 		ast = self.parse_regex()
 		if not self.tokenizer.atEnd():
+			print (self.tokenizer)
 			raise ParseError()
 		return ast
 
 
 	def parse_regex(self):
-		''' regex:  concatExprn '''
-		return self.parse_concatExprn()
+		''' regex:  alternationExprn '''
+		return self.parse_alternationExprn()
+
+
+
 
 	def parse_concatExprn(self):
-		''' concatExprn: alternationExprn + '''
-		altExprn = self.parse_alternationExprn()
-		children = [altExprn]
+		''' concatExprn: duplicationExprn + '''
+		dupExprn = self.parse_duplicationExprn()
+		children = [dupExprn]
 		try:
 			while not self.tokenizer.atEnd():
-				altExprn = self.parse_alternationExprn()
-				children.append(altExprn)
+				dupExprn = self.parse_duplicationExprn()
+				children.append(dupExprn)
 		except ParseError:
 			pass
 		if len(children) == 1:
@@ -338,12 +363,12 @@ class Parser:
 		return ConcatNode(children)
 
 	def parse_alternationExprn(self):
-		''' alternationExprn: duplicationExprn ('|' duplicationExprn)* '''
-		left = self.parse_duplicationExprn()
+		''' alternationExprn: concatExprn ('|' concatExprn)* '''
+		left = self.parse_concatExprn()
 
 		while not self.tokenizer.atEnd() and self.tokenizer.cur().isSpecial() and self.tokenizer.cur().value == '|':
 			self.tokenizer.advance()
-			right = self.parse_duplicationExprn()
+			right = self.parse_concatExprn()
 			left = AlternationNode(left, right)
 
 		return left
@@ -416,16 +441,10 @@ class RegexMatcher:
 
 
 
-
-
-
-
-
-
 ''' main and friends ------------------------------- '''
 
 
-testCases = ['a', 'abc','(abc)*', 'a+', 'a*', 'a?', '(abc)+123', 'a|b|c', 'a+b*c?edf|g|(12(3(xy(123)+z)))*', '\\+\\?\\*']
+testCases = ['a', 'abc','(abc)*', 'a+', 'a*', 'a?', '(abc)+123', 'a|b123|c', 'a+b*c?edf|g|(12(3(xy(123)+z)))*', '\\+\\?\\*']
 
 def genASTTestGraphs():
 	outputDir = 'ASTGraphs'
@@ -539,8 +558,8 @@ def matchTests():
 
 
 def main():
-	# genASTTestGraphs()
-	# genTestStateMachines()
+	genASTTestGraphs()
+	genTestStateMachines()
 	matchTests()
 
 
