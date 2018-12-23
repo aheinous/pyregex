@@ -11,7 +11,7 @@ class Token:
 	def __init__(self, type_, value):
 		self.type = type_
 		self.value = value
-		print(str(self))
+		# print(str(self))
 
 	def isChar(self):
 		# return self.value not in ('+', '?', '*', '(' ,')')
@@ -195,7 +195,11 @@ class StateMachineBuilder(ASTNodeVisitor):
 		self.ast = ast
 
 	def genStateMachine(self):
-		return self.visit(self.ast)
+		enter, exit = self.visit(self.ast)
+		newExit = State()
+		exit.connect(newExit)
+		return enter, newExit
+
 
 
 	def visit_ConcatNode(self, node):
@@ -237,10 +241,6 @@ class StateMachineBuilder(ASTNodeVisitor):
 			childExit.connect(exit)
 			return childEnter, exit
 		elif op == '*':
-			# enter = State()
-			# enter.connect(childEnter)
-			# childExit.connect(enter)
-			# return enter, childExit
 			enterExit = State()
 			enterExit.connect(childEnter)
 			childExit.connect(enterExit)
@@ -248,11 +248,10 @@ class StateMachineBuilder(ASTNodeVisitor):
 		assert False
 
 
+
 	def visit_CharNode(self, node):
-		enter = State(node.char.value)
-		exit = State()
-		enter.connect(exit)
-		return enter, exit
+		s = State(node.char.value)
+		return s, s
 
 ''' State Machine Dot Gen --------------------------- '''
 
@@ -520,7 +519,10 @@ def matchTests():
 		('\\+\\+', '++', True),
 		('\\+\\?\\*', '+?*', True),
 		# ('a?'*100 + 'a'*100, 'a'*100 , True),
-		# ('a?'*100 + 'a'*100, 'a'*100 + 'b', False),
+		('a?'*100 + 'a'*100, 'a'*100 + 'b', False),
+		('a?'*1000 + 'a'*1000, 'a'*1000 + 'b', False),
+		# ('a?'*10000 + 'a'*10000, 'a'*10000 + 'b', False),
+		# ('a?'*100000 + 'a'*100000, 'a'*100000 + 'b', False),
 	]
 
 	passed = 0
@@ -537,8 +539,8 @@ def matchTests():
 
 
 def main():
-	genASTTestGraphs()
-	genTestStateMachines()
+	# genASTTestGraphs()
+	# genTestStateMachines()
 	matchTests()
 
 
