@@ -24,7 +24,7 @@ class Token:
 		return 'Token({}, {})'.format(self.type, self.value)
 
 
-SPECIALS = {'+','?', '*', '(', ')', '|'}
+SPECIALS = {'+','?', '*', '(', ')', '|', '^', '$'}
 ESCAPED_SPECIALS = set(map(lambda c: '\\'+c, SPECIALS))
 
 
@@ -99,6 +99,12 @@ class CharNode(ASTNode):
 	def __init__(self, char):
 		self.char = char
 
+class AnchorNode(ASTNode):
+	def __init__(self, start, end, child):
+		self.start = start
+		self.end = end
+		self.child = child
+
 ''' AST Visitor -------------------------------- '''
 
 class Visitor:
@@ -133,6 +139,9 @@ class ASTNodeVisitor(Visitor):
 		raise NotImplementedError()
 
 	def visit_CharNode(self, node):
+		raise NotImplementedError()
+
+	def visit_AnchorNode(self, node):
 		raise NotImplementedError()
 
 ''' AST Dot Gen Visitor -------------------------- '''
@@ -186,12 +195,26 @@ digraph astgraph {
 		s = '\tnode{} [label="{}"]\n'.format(self.getNodeID(node), node.char.value)
 		return s
 
+
+
+	def visit_AnchorNode(self, node):
+		label = '{} anchor {}'.format(
+			'^' if node.start else '',
+			'$' if node.end else ''
+		)
+		s = '\tnode{} [label="{}"]\n'.format(self.getNodeID(node), label)
+		s += self.visit(node.child)
+		s += '\tnode{} -> node{}\n'.format(self.getNodeID(node), self.getNodeID(node.child))
+		return s
+
+
 ''' State Machine ----------------------------------------- '''
 
 class State:
-	def __init__(self, condition=None):
+	def __init__(self, condition=None, isNonPrinting=False):
 		self.condition = condition
 		self.connections = []
+		self.isNonPrinting = isNonPrinting
 
 	def connect(self, other):
 		self.connections.append(other)
@@ -273,9 +296,12 @@ class StateMachineBuilder(ASTNodeVisitor):
 		return enter, exit
 
 
-
-
 	def visit_ConcatNode(self, node):
+
+		if len(node.children) == 0:
+			s = State()
+			return s, s
+		
 		enter, exit = self.visit(node.children[0])
 		for child in node.children[1:]:
 			childEnter, childExit = self.visit(child)
@@ -296,7 +322,6 @@ class StateMachineBuilder(ASTNodeVisitor):
 		sub1_exit.connect(exit)
 
 		return enter, exit
-
 
 
 	def visit_DuplicationNode(self, node):
@@ -321,10 +346,26 @@ class StateMachineBuilder(ASTNodeVisitor):
 		assert False
 
 
-
 	def visit_CharNode(self, node):
 		s = State(node.char.value)
 		return s, s
+
+
+	def visit_AnchorNode(self, node):
+		enter, exit = self.visit(node.child)
+
+		if node.start:
+			oldEnter = enter
+			enter = State('^', isNonPrinting=True)
+			enter.connections.append(oldEnter)
+
+		if node.end:
+			oldExit = exit
+			exit = State('$', isNonPrinting=True)
+			oldExit.connections.append(exit)
+
+		return enter, exit
+
 
 ''' State Machine Dot Gen --------------------------- '''
 
@@ -357,9 +398,12 @@ digraph astgraph {
 			return ''
 		self.seen.add(node)
 
+		label = 'NP ' if node.isNonPrinting else ''
+		label += 'exit' if node is self.exit else node.condition if node.condition else ''
+
 		s = '\tnode{} [label="{}"]\n'.format(
 				self.getNodeID(node),
-				'exit' if node is self.exit else node.condition if node.condition else ''
+				label
 			)
 		for adjacent in node.connections:
 			s += self.visit(adjacent)
@@ -394,8 +438,6 @@ class Parser:
 	'''
 
 	def __init__(self, regex):
-		if len(regex) == 0:
-			raise Exception('zero length regex')
 		self.tokenizer = Tokenizer(regex)
 
 
@@ -411,13 +453,9 @@ class Parser:
 		''' regex:  alternationExprn '''
 		return self.parse_alternationExprn()
 
-
-
-
 	def parse_concatExprn(self):
 		''' concatExprn: duplicationExprn + '''
-		dupExprn = self.parse_duplicationExprn()
-		children = [dupExprn]
+		children = []
 		try:
 			while not self.tokenizer.atEnd():
 				dupExprn = self.parse_duplicationExprn()
@@ -428,13 +466,43 @@ class Parser:
 			return children[0]
 		return ConcatNode(children)
 
+
+
+	def parse_anchorExprn(self):
+		''' anchorExprn: '^'? concatExprn? '$'? '''
+
+		anchorStart, anchorEnd = False, False
+
+		if not self.tokenizer.atEnd() and self.tokenizer.cur().isSpecial() and self.tokenizer.cur().value == '^':
+			anchorStart = True
+			self.tokenizer.advance()
+
+		try:
+			concatNode = self.parse_concatExprn()
+		except ParseError:
+			concatNode = None
+
+		if not self.tokenizer.atEnd() and self.tokenizer.cur().isSpecial() and self.tokenizer.cur().value == '$':
+			anchorEnd = True
+			self.tokenizer.advance()
+
+		if not anchorStart and not anchorEnd and concatNode is None:
+			raise ParseError()
+
+		if not anchorStart and not anchorEnd:
+			return concatNode
+
+		return AnchorNode(anchorStart, anchorEnd, concatNode)
+
+
+
 	def parse_alternationExprn(self):
-		''' alternationExprn: concatExprn ('|' concatExprn)* '''
-		left = self.parse_concatExprn()
+		''' alternationExprn: anchorExprn ('|' anchorExprn)* '''
+		left = self.parse_anchorExprn()
 
 		while not self.tokenizer.atEnd() and self.tokenizer.cur().isSpecial() and self.tokenizer.cur().value == '|':
 			self.tokenizer.advance()
-			right = self.parse_concatExprn()
+			right = self.parse_anchorExprn()
 			left = AlternationNode(left, right)
 
 		return left
@@ -464,53 +532,111 @@ class Parser:
 
 ''' Regex Test ------------------------------------- '''
 
+
+class MatchFound(Exception):
+	pass
+
 class RegexMatcher:
 	def __init__(self, regex):
 		ast = Parser(regex).parse()
-		self.enter, self.exit = StateMachineBuilder(ast).genStateMachine()
-		self.curStates = set()
+		self._enter, self._exit = StateMachineBuilder(ast).genStateMachine()
+		self._clear()
+
+	def _clear(self):
+		self._curUnconditionals = set()
+		self._curNonprinting = set()
+		self._curNormal = set()
+
+
+	def _addState(self, state):
+		if state is self._exit:
+			raise MatchFound()
+		if state.isUnconditional():
+			self._curUnconditionals.add(state)
+		elif state.isNonPrinting:
+			self._curNonprinting.add(state)
+		else:
+			self._curNormal.add(state)
+
+	def _addStates(self, states):
+		for s in states:
+			self._addState(s)
+
+	def _hasState(self, state):
+		return state in self._curNormal or state in self._curUnconditionals or state in self._curUnconditionals
 
 	def matches(self, testStr):
-		# print('len states: ', len(self.curStates))
-		self.reset()
-		# print('len states: ', len(self.curStates))
-		for c in testStr:
-			# print('consume: ', c)
-			self.consumeChar(c)
-			# print('len states: ', len(self.curStates))
-		return self.exit in self.curStates
+		try:
+			self._reset()
+			self._consumeNonprinting('^')
+			for c in testStr:
+				self._addState(self._enter)
+				self._consumeChar(c)
+			self._consumeNonprinting('$')
+		except MatchFound:
+			return True
+		return False
 
-	def consumeChar(self, c):
-		nextStates = set()
-		for state in self.curStates:
-			# print('>>', state.condition, c)
+	def _consumeNonprinting(self, npc):
+		nonprinting = self._curNonprinting
+		self._curNonprinting = set()
+
+		for state in nonprinting:
+			if state.condition == npc:
+				self._addStates(state.connections)
+		self._processUnconditionals()
+
+	def _consumeChar(self, c):
+		curNormal = self._curNormal
+		self._clear()
+
+		for state in curNormal:
 			if state.condition == c:
-				nextStates.update(state.connections)
-		self.curStates = nextStates
-		self.addUnconditionals()
+				self._addStates(state.connections)
+		self._processUnconditionals()
 
 
-	def reset(self):
-		self.curStates = { self.enter }
-		self.addUnconditionals()
+	def _reset(self):
+		self._addState(self._enter)
+		self._processUnconditionals()
 
 
-	def addUnconditionals(self):
-		toProcess = list(self.curStates)
+	def _processUnconditionals(self):
+		toProcess = list(self._curUnconditionals)
 		while len(toProcess) > 0:
 			cur = toProcess.pop()
-			if cur.condition is None:
+			if cur.isUnconditional():
 				for adjacent in cur.connections:
-					if adjacent not in self.curStates:
-						self.curStates.add(adjacent)
-						toProcess.append(adjacent)
+					self._addState(adjacent)
+					toProcess.append(adjacent)
+
+
+
 
 
 
 ''' main and friends ------------------------------- '''
 
 
-testCases = ['a', '(a*)*', 'abc','(abc)*', 'a+', 'a*', 'a?', '(abc)+123', 'a|b123|c', 'a+b*c?edf|g|(12(3(xy(123)+z)))*', '\\+\\?\\*']
+testCases = ['a',
+ 				'(a*)*',
+ 				'abc',
+ 				'(abc)*',
+ 				'a+',
+ 				'a*',
+ 				'a?',
+ 				'(abc)+123',
+ 				'a|b123|c',
+ 				'a+b*c?edf|g|(12(3(xy(123)+z)))*',
+ 				'\\+\\?\\*',
+
+ 				'^a',
+ 				'a$',
+ 				'^a$',
+ 				''
+ 				'^$'
+
+ 				]
 
 def genASTTestGraphs():
 	outputDir = 'ASTGraphs'
@@ -570,51 +696,59 @@ def matchTests():
 	testCases = [
 		('a', 'a', True),
 		('a', 'b', False),
-		('abcd', 'abcd', True),
-		('abcd', 'abc', False),
-		('abc', 'abcd', False),
-		('abcd', 'bcd', False),
-		('bcd', 'abcd', False),
+		('^abcd$', 'abcd', True),
+		('^abcd$', 'abc', False),
+		('^abc$', 'abcd', False),
+		('^abcd$', 'bcd', False),
+		('^bcd$', 'abcd', False),
 		('a*', 'a', True),
 		('a*', 'aaaa', True),
 		('a*', '', True),
-		('a*', 'b', False),
-		('a*', 'ab', False),
+		('a*', 'b', True),
+		('a*$', 'ab', False),
 		('a*b', 'aaaab', True),
-		('a|b|c', 'a', True),
-		('a|b|c', 'b', True),
-		('a|b|c', 'c', True),
-		('a|b|c', 'd', False),
-		('a|b|c', 'ab', False),
+		('^(a|b|c)$', 'a', True),
+		('^(a|b|c)$', 'b', True),
+		('^(a|b|c)$', 'c', True),
+		('^(a|b|c)$', 'd', False),
+		('^(a|b|c)$', 'ab', False),
 		('car|boat|jet', 'ab', False),
 		('car|boat|jet', 'caoaret', False),
 		('car|boat|jet', 'car', True),
 		('car|boat|jet', 'boat', True),
 		('car|boat|jet', 'jet', True),
-		('(abc)+', 'abc', True),
-		('(abc)+', 'abcabc', True),
-		('(abc)+', 'abcabcabc', True),
-		('(abc)+', 'abcabcab', False),
-		('(abc)+', 'abcabcaba', False),
-		('(abc)+', '', False),
-		('(abc)*', '', True),
-		('(abc)?', '', True),
-		('(abc)?', 'abc', True),
+		('^((abc)+)$', 'abc', True),
+		('^((abc)+)$', 'abcabc', True),
+		('^((abc)+)$', 'abcabcabc', True),
+		('^((abc)+)$', 'abcabcab', False),
+		('^((abc)+)$', 'abcabcaba', False),
+		('^((abc)+)$', '', False),
+		('^((abc)*)$', '', True),
+		('^((abc)?)$', '', True),
+		('^((abc)?)$', 'abc', True),
 		# ('', '', True),
-		('(abc)?', 'z', False),
+		('^(abc)?$', 'z', False),
 		('\\+', '+', True),
 		('\\+', 'a', False),
 		('\\?', '?', True),
 		('\\*', '*', True),
 		('\\+\\+', '++', True),
 		('\\+\\?\\*', '+?*', True),
-		('(a*)*', 'a', True),
-		('(a*)*', 'b', False),
-		# ('a?'*100 + 'a'*100, 'a'*100 , True),
-		('a?'*100 + 'a'*100, 'a'*100 + 'b', False),
-		('a?'*1000 + 'a'*1000, 'a'*1000 + 'b', False),
-		# ('a?'*10000 + 'a'*10000, 'a'*10000 + 'b', False),
-		# ('a?'*100000 + 'a'*100000, 'a'*100000 + 'b', False),
+		('^((a*)*)$', 'a', True),
+		('^((a*)*)$', 'b', False),
+		# ('a?'*100 + 'a'*100, 'a'*100 + 'b', False),
+
+
+
+		('^abc','abcd', True),
+		('^bcd','abcd', False),
+		('^bcd$','bcd', True),
+		('^bcd$','bcde', False),
+		('','sdgsa', True),
+		('','', True),
+		('^$','', True),
+		('^$','a', False),
+
 	]
 
 	passed = 0
@@ -625,9 +759,9 @@ def matchTests():
 			res = matcher.matches(canidate)
 		except Exception as e:
 			res = e
+		passed += (expectedRes == res)
 		print('SUCCESS' if expectedRes == res else 'FAILURE')
 		print('\t{}\n\t{}\n\texpected: {}\n\tactual:   {}'.format(regex, canidate, expectedRes, res))
-		passed += (expectedRes == res)
 		print('--------------------------------------------------------')
 		# return
 	print('PASSED: {} / {}'.format(passed, len(testCases)))
