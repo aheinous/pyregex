@@ -199,6 +199,26 @@ class State:
 	def isUnconditional(self):
 		return self.condition == None
 
+	def __str__(self):
+		return self._toString(nestLimit=4)
+
+	def _toString(self, nestLimit=None, seen=None):
+		if seen is None:
+			seen = set()
+		if self in seen:
+			return '(***)'
+		seen.add(self)
+		nextNestLimit = nestLimit - 1 if nestLimit is not None else None
+		selfPart = str(self.condition)
+
+		if len(self.connections) == 0:
+			otherPart = ''
+		elif nestLimit == 0:
+			otherPart = '...'
+		else:
+			otherPart = ','.join(map(lambda other: other._toString(nextNestLimit, seen), self.connections))
+
+		return '({} {})'.format(selfPart, otherPart)
 class StateMachineBuilder(ASTNodeVisitor):
 
 	def __init__(self, ast):
