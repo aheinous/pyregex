@@ -442,7 +442,7 @@ class RegexMatcher:
 		for state in self.curStates:
 			# print('>>', state.condition, c)
 			if state.condition == c:
-				nextStates.add(*state.connections)
+				nextStates.update(state.connections)
 		self.curStates = nextStates
 		self.addUnconditionals()
 
