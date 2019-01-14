@@ -467,7 +467,7 @@ class RegexMatcher:
 ''' main and friends ------------------------------- '''
 
 
-testCases = ['a', 'abc','(abc)*', 'a+', 'a*', 'a?', '(abc)+123', 'a|b123|c', 'a+b*c?edf|g|(12(3(xy(123)+z)))*', '\\+\\?\\*']
+testCases = ['a', '(a*)*', 'abc','(abc)*', 'a+', 'a*', 'a?', '(abc)+123', 'a|b123|c', 'a+b*c?edf|g|(12(3(xy(123)+z)))*', '\\+\\?\\*']
 
 def genASTTestGraphs():
 	outputDir = 'ASTGraphs'
@@ -565,6 +565,8 @@ def matchTests():
 		('\\*', '*', True),
 		('\\+\\+', '++', True),
 		('\\+\\?\\*', '+?*', True),
+		('(a*)*', 'a', True),
+		('(a*)*', 'b', False),
 		# ('a?'*100 + 'a'*100, 'a'*100 , True),
 		('a?'*100 + 'a'*100, 'a'*100 + 'b', False),
 		('a?'*1000 + 'a'*1000, 'a'*1000 + 'b', False),
