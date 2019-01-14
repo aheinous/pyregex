@@ -219,6 +219,45 @@ class State:
 			otherPart = ','.join(map(lambda other: other._toString(nextNestLimit, seen), self.connections))
 
 		return '({} {})'.format(selfPart, otherPart)
+
+
+class StateGraphOptimizer:
+
+	def __init__(self, enter, exit):
+		self.enter = enter
+		self.exit = exit
+
+	def optimize(self):
+		fringe = [self.enter]
+		seen = set()
+		while len(fringe) > 0:
+			cur = fringe.pop()
+			if cur in seen:
+				continue
+			seen.add(cur)
+			self._optimizeVertex(cur)
+			fringe += cur.connections
+		return self.enter, self.exit
+
+	def _optimizeVertex(self, vertex):
+		toProcess = vertex.connections[:]
+		newConnections = []
+		seen = set()
+		while len(toProcess) > 0:
+			cur = toProcess.pop()
+			if cur in seen:
+				# raise Exception('repeat in _optimizeVertex(). cyclic subgraph of unconditionals')
+				continue
+			seen.add(cur)
+			if cur.isUnconditional() and cur is not self.exit:
+				toProcess += cur.connections
+			else:
+				newConnections.append(cur)
+		vertex.connections = newConnections
+
+
+
+
 class StateMachineBuilder(ASTNodeVisitor):
 
 	def __init__(self, ast):
@@ -228,7 +267,11 @@ class StateMachineBuilder(ASTNodeVisitor):
 		enter, exit = self.visit(self.ast)
 		newExit = State()
 		exit.connect(newExit)
-		return enter, newExit
+		exit = newExit
+
+		enter, exit = StateGraphOptimizer(enter, exit).optimize()
+		return enter, exit
+
 
 
 
