@@ -316,14 +316,14 @@ digraph astgraph {
 
 		s = '\tnode{} [label="{}"]\n'.format(
 				self.getNodeID(node),
-				'exit' if node is self.exit else ''
+				'exit' if node is self.exit else node.condition if node.condition else ''
 			)
 		for adjacent in node.connections:
 			s += self.visit(adjacent)
 			s += '\tnode{} -> node{} [label = "{}"]\n'.format(
 					self.getNodeID(node),
 					self.getNodeID(adjacent),
-					node.condition if node.condition is not None else ''
+					''
 				)
 		return s
 
