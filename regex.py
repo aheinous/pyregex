@@ -196,6 +196,9 @@ class State:
 	def connect(self, other):
 		self.connections.append(other)
 
+	def isUnconditional(self):
+		return self.condition == None
+
 class StateMachineBuilder(ASTNodeVisitor):
 
 	def __init__(self, ast):
