@@ -575,8 +575,11 @@ def matchTests():
 	passed = 0
 	for regex, canidate, expectedRes in testCases:
 		print('--------------------------------------------------------')
-		matcher = RegexMatcher(regex)
-		res = matcher.matches(canidate)
+		try:
+			matcher = RegexMatcher(regex)
+			res = matcher.matches(canidate)
+		except Exception as e:
+			res = e
 		print('SUCCESS' if expectedRes == res else 'FAILURE')
 		print('\t{}\n\t{}\n\texpected: {}\n\tactual:   {}'.format(regex, canidate, expectedRes, res))
 		passed += (expectedRes == res)
