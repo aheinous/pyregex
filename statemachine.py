@@ -1,3 +1,5 @@
+import os
+
 from ast import ASTNodeVisitor
 from visitor import Visitor
 
@@ -206,3 +208,17 @@ digraph astgraph {
 					''
 				)
 		return s
+
+
+
+def writeStateMachineDotGraph(rootLabel, enter, exit, basename):
+		dotCode = StateMachineDotGen(enter, exit).genDot(rootLabel)
+		dotfname = basename + '.dot'
+		pngfname = basename + '.png'
+		with open(dotfname, 'w') as f:
+			f.write(dotCode)
+
+		os.system('dot -Tpng -o {png} {dot}'.format(
+					png = pngfname,
+					dot = dotfname
+		))

@@ -1,3 +1,5 @@
+import os
+
 from visitor import Visitor
 
 
@@ -111,3 +113,16 @@ digraph astgraph {
 		s += self.visit(node.child)
 		s += '\tnode{} -> node{}\n'.format(self.getNodeID(node), self.getNodeID(node.child))
 		return s
+
+
+def writeASTDotGraph(rootLabel, ast, basename):
+		dotCode = ASTDotGen(ast).genDot(rootLabel)
+		dotfname = basename + '.dot'
+		pngfname = basename + '.png'
+		with open(dotfname, 'w') as f:
+			f.write(dotCode)
+
+		os.system('dot -Tpng -o {png} {dot}'.format(
+					png = pngfname,
+					dot = dotfname
+		))

@@ -2,8 +2,8 @@
 
 import os
 
-from ast import ASTDotGen
-from statemachine import StateMachineBuilder, StateMachineDotGen
+from ast import writeASTDotGraph
+from statemachine import StateMachineBuilder, writeStateMachineDotGraph
 from parser import Parser
 from matchtester import MatchTester
 
@@ -33,57 +33,30 @@ testCases = ['a',
 
  				]
 
+
 def genASTTestGraphs():
 	outputDir = 'ASTGraphs'
 	os.system('mkdir -p ' + outputDir)
 	os.system('rm  ' + outputDir + os.sep + '*')
-	# testCases = ['a', 'abc', 'a+', 'a*', 'a?', '(abc)+123', 'a|b|c', 'a+b*c?edf|g|(12(3(xy(123)+z)))*']
+	basename = outputDir + os.sep + 'ast'
 	for n, regex in enumerate(testCases):
-		print('--------------------------------------------------------')
-		print(regex,'\n')
 		ast = Parser(regex).parse()
-		dotCode = ASTDotGen(ast).genDot(regex)
-		print(dotCode)
-
-		fname = outputDir + os.sep + 'ast{}.dot'.format(n)
-		with open(fname, 'w') as f:
-			f.write(dotCode)
-
-		os.system('cd {outputDir} && dot -Tpng -o ast{n}.png ast{n}.dot'.format(
-					outputDir=outputDir,
-					n=n) )
+		writeASTDotGraph(regex, ast, basename+str(n))
+	os.system('xdg-open {}0.png'.format(basename))
 
 
-		print('--------------------------------------------------------')
-	os.system('cd {outputDir} && xdg-open ast0.png'.format(outputDir=outputDir))
 
-
-def genTestStateMachines():
-
+def genStateMachinesTestGraphs():
 	outputDir = 'StateGraphs'
 	os.system('mkdir -p ' + outputDir)
 	os.system('rm  ' + outputDir + os.sep + '*')
-
+	basename = outputDir + os.sep + 'ast'
 	for n, regex in enumerate(testCases):
-		print('--------------------------------------------------------')
-		print(regex,'\n')
 		ast = Parser(regex).parse()
 		enter, exit = StateMachineBuilder(ast).genStateMachine()
+		writeStateMachineDotGraph(regex, enter, exit, basename+str(n))
+	os.system('xdg-open {}0.png'.format(basename))
 
-		dotCode = StateMachineDotGen(enter, exit).genDot(regex)
-		print(dotCode)
-
-		fname = outputDir + os.sep + 'sm{}.dot'.format(n)
-		with open(fname, 'w') as f:
-			f.write(dotCode)
-
-		os.system('cd {outputDir} && dot -Tpng -o sm{n}.png sm{n}.dot'.format(
-					outputDir=outputDir,
-					n=n) )
-
-
-		print('--------------------------------------------------------')
-	os.system('cd {outputDir} && xdg-open sm0.png'.format(outputDir=outputDir))
 
 
 
@@ -164,7 +137,7 @@ def matchTests():
 
 def main():
 	genASTTestGraphs()
-	genTestStateMachines()
+	genStateMachinesTestGraphs()
 	matchTests()
 
 
