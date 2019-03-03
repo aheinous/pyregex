@@ -13,7 +13,7 @@ from matchtester import MatchTester
 ''' main and friends ------------------------------- '''
 
 
-testCases = ['a',
+graphTestCases = ['a',
  				'(a*)*',
  				'abc',
  				'(abc)*',
@@ -39,7 +39,7 @@ def genASTTestGraphs():
 	os.system('mkdir -p ' + outputDir)
 	os.system('rm  ' + outputDir + os.sep + '*')
 	basename = outputDir + os.sep + 'ast'
-	for n, regex in enumerate(testCases):
+	for n, regex in enumerate(graphTestCases):
 		ast = Parser(regex).parse()
 		writeASTDotGraph(regex, ast, basename+str(n))
 	os.system('xdg-open {}0.png'.format(basename))
@@ -51,7 +51,7 @@ def genStateMachinesTestGraphs():
 	os.system('mkdir -p ' + outputDir)
 	os.system('rm  ' + outputDir + os.sep + '*')
 	basename = outputDir + os.sep + 'ast'
-	for n, regex in enumerate(testCases):
+	for n, regex in enumerate(graphTestCases):
 		ast = Parser(regex).parse()
 		enter, exit = StateMachineBuilder(ast).genStateMachine()
 		writeStateMachineDotGraph(regex, enter, exit, basename+str(n))
