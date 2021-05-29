@@ -1,6 +1,5 @@
 from tokenizer import Tokenizer
-from ast import ASTNode, ConcatNode, AlternationNode, DuplicationNode, CharNode, AnchorNode
-
+from abstract_syntax_tree import ASTNode, ConcatNode, AlternationNode, DuplicationNode, CharNode, AnchorNode
 
 class ParseError(Exception):
 	pass

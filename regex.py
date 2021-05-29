@@ -2,7 +2,7 @@
 
 import os
 
-from ast import writeASTDotGraph
+from abstract_syntax_tree import writeASTDotGraph
 from statemachine import StateMachineBuilder, writeStateMachineDotGraph
 from parser import Parser
 from matchtester import MatchTester

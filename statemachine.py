@@ -1,6 +1,6 @@
 import os
 
-from ast import ASTNodeVisitor
+from abstract_syntax_tree import ASTNodeVisitor
 from visitor import Visitor
 
 ''' State Machine ----------------------------------------- '''
@@ -64,7 +64,6 @@ class StateGraphOptimizer:
 		while len(toProcess) > 0:
 			cur = toProcess.pop()
 			if cur in seen:
-				# raise Exception('repeat in _optimizeVertex(). cyclic subgraph of unconditionals')
 				continue
 			seen.add(cur)
 			if cur.isUnconditional() and cur is not self.exit:
