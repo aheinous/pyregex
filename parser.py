@@ -8,6 +8,12 @@ class ParseError(Exception):
 class Parser:
 
 	'''
+	Parses a regular expression into an abstract syntax tree.
+	'''
+
+
+
+	'''
 	The order of precedence for of operators is as follows:
 
 	Collation-related bracket symbols [==] [::] [..]

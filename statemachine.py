@@ -3,9 +3,28 @@ import os
 from abstract_syntax_tree import ASTNodeVisitor
 from visitor import Visitor
 
+'''
+This file contains a StateMachineBuilder for generating state machines from
+abstract syntax trees. It also contains related definitions and tools for
+operating on a state machine.
+
+A state machine is a graph of different State objects. In terms of function
+calls, return values, etc. it is represented as a pair of nodes (enter and exit).
+It could be argued that enter and exit could be combined into a single object,
+but that would add unnessesary boiler plate code without adding an functionality.
+'''
+
+
+
+
 ''' State Machine ----------------------------------------- '''
 
 class State:
+
+	'''
+	States are the nodes making up a state machine graph.
+	'''
+
 	def __init__(self, condition=None, isNonPrinting=False):
 		self.condition = condition
 		self.connections = []
@@ -40,6 +59,10 @@ class State:
 
 
 class StateGraphOptimizer:
+
+	'''
+	Optimizes state machine graphs by removing redundant unconditional nodes.
+	'''
 
 	def __init__(self, enter, exit):
 		self.enter = enter
@@ -76,6 +99,12 @@ class StateGraphOptimizer:
 
 
 class StateMachineBuilder(ASTNodeVisitor):
+
+	'''
+	Generates a state machine from an abstract syntax tree. In this
+	context a state machine is a graph of differnt State objects, and
+	is a nondeterministic finite automaton.
+	'''
 
 	def __init__(self, ast):
 		self.ast = ast

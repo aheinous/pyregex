@@ -2,11 +2,28 @@ from parser import Parser
 from statemachine import StateMachineBuilder
 from collections import defaultdict
 
+
+
+'''
+The match tester operates on nondeterministic fint automaton (state machine)
+and uses it to test whether given strings match the associated regex. Basically,
+it's the part the actually tells you if regex matches a certain string.
+'''
+
+
 class MatchFound(Exception):
 	pass
 
 
 class MatchTesterFringe:
+
+	'''
+	The data structure managment component of MatchTester.
+	The MatchTester opperates on a nondeterministic finite automaton,
+	so the MatchTesterFringe contains all the states the we're in
+	at the same time.
+	'''
+
 	def __init__(self,  exit):
 		self._exit = exit
 		self.clear()
@@ -47,10 +64,6 @@ class MatchTesterFringe:
 		for s in states:
 			self.addState(s)
 
-	def hasState(self, state):
-		return (state.condition in self._normal
-				or state.condition in self._unconditionals
-				or state in self._unconditionals)
 
 class MatchTester:
 	def __init__(self, regex):

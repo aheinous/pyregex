@@ -3,6 +3,14 @@ import os
 from visitor import Visitor
 
 
+'''
+This file contains definitions for the Nodes that make up an abstract sysntax tree,
+as well as tools for operating on an abstract syntax tree, such as a visitor class,
+and a class for generating a dot code representation of the graph.
+'''
+
+
+
 ''' Nodes ------------------------------------------ '''
 
 class ASTNode:
