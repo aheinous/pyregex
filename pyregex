@@ -1,0 +1,61 @@
+#!/usr/bin/python3
+
+import os
+import sys
+from argparse import ArgumentParser
+
+from abstract_syntax_tree import writeASTDotGraph
+from statemachine import StateMachineBuilder, writeStateMachineDotGraph
+from parser import Parser
+from matchtester import MatchFound, MatchTester
+
+
+
+
+def genGraphs(regex, outdir):
+	os.system('mkdir -p ' + outdir)
+	basename = outdir + os.sep
+	ast = Parser(regex).parse()
+	writeASTDotGraph(regex, ast, basename+'AST')
+	enter, exit = StateMachineBuilder(ast).genStateMachine()
+	writeStateMachineDotGraph(regex, enter, exit, basename+'StateMachine')
+
+
+
+
+def matchSearch(matchtester, toSearch, fname):
+	matchFound = False
+	for n,ln in enumerate(toSearch):
+		if matchtester.matches(ln):
+			print('{}:{} {}'.format(fname, n+1, ln[:-1] if ln[-1] =='\n' else ln))
+			matchFound = True
+	return matchFound
+
+
+
+def main():
+	argparser = ArgumentParser()
+	argparser.add_argument('regex', help='The regular expression')
+	argparser.add_argument('file', nargs='*', help='File to be searched. If ommitted, read from stdin')
+	argparser.add_argument('-g', '--graphs', metavar='DIR',help='Output images of AST and state machine graphs to this directory, then exit.')
+	args = argparser.parse_args()
+
+	graphDir = args.graphs
+	if graphDir:
+		genGraphs(args.regex, graphDir)
+		sys.exit(0)
+
+	matchtester = MatchTester(args.regex)
+	matchFound = False
+	if args.file:
+		for fname in args.file:
+			with open(fname) as toSearch:
+				matchFound |= matchSearch(matchtester, toSearch.readlines(), fname)
+
+	else:
+		matchFound = matchSearch(matchtester, sys.stdin, 'STDIN')
+	sys.exit(0 if matchFound else 1)
+
+
+if __name__ == '__main__':
+	main()
