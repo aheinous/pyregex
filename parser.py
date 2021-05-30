@@ -33,7 +33,6 @@ class Parser:
 	def parse(self):
 		ast = self.parse_regex()
 		if not self.tokenizer.atEnd():
-			print (self.tokenizer)
 			raise ParseError()
 		return ast
 
