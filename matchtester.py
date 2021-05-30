@@ -5,7 +5,7 @@ from collections import defaultdict
 
 
 '''
-The match tester operates on nondeterministic fint automaton (state machine)
+The match tester operates on nondeterministic finte automaton (state machine)
 and uses it to test whether given strings match the associated regex. Basically,
 it's the part the actually tells you if regex matches a certain string.
 '''
@@ -19,7 +19,7 @@ class MatchTesterFringe:
 
 	'''
 	The data structure managment component of MatchTester.
-	The MatchTester opperates on a nondeterministic finite automaton,
+	The MatchTester runs a nondeterministic finite automaton,
 	so the MatchTesterFringe contains all the states the we're in
 	at the same time.
 	'''
@@ -78,8 +78,14 @@ class MatchTester:
 			self._consumeNonprinting('^')
 			for c in testStr:
 				self._fringe.addState(self._enter)
+				self._processUnconditionals()
+
 				self._consumeChar(c)
+			self._fringe.addState(self._enter)
+			self._processUnconditionals()
+
 			self._consumeNonprinting('$')
+			self._processUnconditionals()
 		except MatchFound:
 			return True
 		return False
@@ -91,8 +97,6 @@ class MatchTester:
 		if npc in nonprinting:
 			for state in nonprinting[npc]:
 				self._fringe.addStates(state.connections)
-		self._processUnconditionals()
-
 
 	def _consumeChar(self, c):
 		normal = self._fringe.normal
@@ -101,9 +105,6 @@ class MatchTester:
 		if c in normal:
 			for state in normal[c]:
 				self._fringe.addStates(state.connections)
-
-		self._processUnconditionals()
-
 
 	def _reset(self):
 		self._fringe.clear()
