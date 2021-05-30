@@ -50,7 +50,7 @@ def genStateMachinesTestGraphs():
 	outputDir = 'StateGraphs'
 	os.system('mkdir -p ' + outputDir)
 	os.system('rm  ' + outputDir + os.sep + '*')
-	basename = outputDir + os.sep + 'ast'
+	basename = outputDir + os.sep + 'state-machine'
 	for n, regex in enumerate(graphTestCases):
 		ast = Parser(regex).parse()
 		enter, exit = StateMachineBuilder(ast).genStateMachine()
@@ -62,6 +62,8 @@ def genStateMachinesTestGraphs():
 def main():
 	genASTTestGraphs()
 	genStateMachinesTestGraphs()
+
+
 
 
 if __name__ == '__main__':
