@@ -4,6 +4,9 @@ class Visitor:
 		self.idCount = 0
 
 	def getNodeID(self, node):
+		'''
+		Generate UIDs for nodes, if you need them.
+		'''
 		if node not in self.nodeIDs.keys():
 			self.idCount += 1
 			self.nodeIDs[node] = self.idCount
